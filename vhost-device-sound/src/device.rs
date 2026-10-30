@@ -304,8 +304,11 @@ impl VhostUserSoundThread {
                     if stream_id as usize >= self.streams_no {
                         log::error!("{}", Error::from(StreamError::InvalidStreamId(stream_id)));
                         resp.code = VIRTIO_SND_S_BAD_MSG.into();
-                    } else {
-                        audio_backend.write().unwrap().prepare(stream_id).unwrap();
+                    } else if let Err(err) = audio_backend.write().unwrap().prepare(stream_id) {
+                        // Answer the guest instead of panicking: a panic
+                        // here stops the thread that serves every queue.
+                        log::error!("Stream {stream_id} prepare: {err}");
+                        resp.code = VIRTIO_SND_S_BAD_MSG.into();
                     }
                 }
                 ControlMessageKind::PcmRelease => {
@@ -338,8 +341,11 @@ impl VhostUserSoundThread {
                     if stream_id as usize >= self.streams_no {
                         log::error!("{}", Error::from(StreamError::InvalidStreamId(stream_id)));
                         resp.code = VIRTIO_SND_S_BAD_MSG.into();
-                    } else {
-                        audio_backend.write().unwrap().start(stream_id).unwrap();
+                    } else if let Err(err) = audio_backend.write().unwrap().start(stream_id) {
+                        // Answer the guest instead of panicking: a panic
+                        // here stops the thread that serves every queue.
+                        log::error!("Stream {stream_id} start: {err}");
+                        resp.code = VIRTIO_SND_S_BAD_MSG.into();
                     }
                 }
                 ControlMessageKind::PcmStop => {
@@ -351,8 +357,11 @@ impl VhostUserSoundThread {
                     if stream_id as usize >= self.streams_no {
                         log::error!("{}", Error::from(StreamError::InvalidStreamId(stream_id)));
                         resp.code = VIRTIO_SND_S_BAD_MSG.into();
-                    } else {
-                        audio_backend.write().unwrap().stop(stream_id).unwrap();
+                    } else if let Err(err) = audio_backend.write().unwrap().stop(stream_id) {
+                        // Answer the guest instead of panicking: a panic
+                        // here stops the thread that serves every queue.
+                        log::error!("Stream {stream_id} stop: {err}");
+                        resp.code = VIRTIO_SND_S_BAD_MSG.into();
                     }
                 }
             }

@@ -588,10 +588,15 @@ impl AudioBackend for PwBackend {
         }
         let lock_guard = self.thread_loop.lock();
         let stream_hash = self.stream_hash.read().unwrap();
-        let stream = stream_hash
-            .get(&stream_id)
-            .expect("Could not find stream with this id in `stream_hash`.");
-        stream.set_active(true).expect("could not start stream");
+        // No stream if PREPARE failed partway. Report it rather than panic:
+        // this runs on the thread that serves every queue.
+        let Some(stream) = stream_hash.get(&stream_id) else {
+            log::error!("Stream {stream_id} start: not prepared");
+            return Err(Error::StreamWithIdNotFound(stream_id));
+        };
+        if let Err(err) = stream.set_active(true) {
+            log::error!("Stream {stream_id} start: {err}");
+        }
         lock_guard.unlock();
         Ok(())
     }
@@ -612,10 +617,15 @@ impl AudioBackend for PwBackend {
         }
         let lock_guard = self.thread_loop.lock();
         let stream_hash = self.stream_hash.read().unwrap();
-        let stream = stream_hash
-            .get(&stream_id)
-            .expect("Could not find stream with this id in `stream_hash`.");
-        stream.set_active(false).expect("could not stop stream");
+        // No stream if PREPARE failed partway. Report it rather than panic:
+        // this runs on the thread that serves every queue.
+        let Some(stream) = stream_hash.get(&stream_id) else {
+            log::error!("Stream {stream_id} stop: not prepared");
+            return Err(Error::StreamWithIdNotFound(stream_id));
+        };
+        if let Err(err) = stream.set_active(false) {
+            log::error!("Stream {stream_id} stop: {err}");
+        }
         lock_guard.unlock();
         Ok(())
     }

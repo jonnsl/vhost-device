@@ -34,6 +34,9 @@
 - [[#1015]](https://github.com/rust-vmm/vhost-device/pull/1015) pipewire: set `node.latency` to the guest's period size, so capture
   with small periods no longer overruns.
 
+- Don't panic when a PREPARE, START or STOP request fails; answer it
+  with `VIRTIO_SND_S_BAD_MSG` instead.
+
 ### Deprecated
 
 ## v0.3.0
