@@ -387,16 +387,22 @@ impl AudioBackend for PwBackend {
                             Direction::Input => {
                                 let datas = req.datas_mut();
                                 let data = &mut datas[0];
-                                let mut n_samples = data.chunk().size() as usize;
+                                let offset = data.chunk().offset() as usize;
+                                let size = data.chunk().size() as usize;
                                 let Some(slice) = data.data() else {
                                     return;
                                 };
+                                // The chunk says where the captured data is
+                                // in the buffer. Stay inside the buffer: a
+                                // panic in this callback aborts the process.
+                                let offset = offset.min(slice.len());
+                                let mut n_samples = size.min(slice.len() - offset);
                                 let mut streams = streams.write().unwrap();
-                                let stream = streams
-                                    .get_mut(stream_id as usize)
-                                    .expect("Stream does not exist");
+                                let Some(stream) = streams.get_mut(stream_id as usize) else {
+                                    return;
+                                };
 
-                                let mut start = 0;
+                                let mut start = offset;
                                 while n_samples > 0 {
                                     let Some(request) = stream.requests.front_mut() else {
                                         return;
@@ -406,12 +412,13 @@ impl AudioBackend for PwBackend {
                                     let n_bytes = n_samples.min(avail);
                                     let p = &slice[start..start + n_bytes];
 
-                                    if request
-                                        .write_input(p)
-                                        .expect("Could not write data to guest memory")
-                                        == 0
-                                    {
-                                        break;
+                                    match request.write_input(p) {
+                                        Ok(0) => break,
+                                        Ok(_) => {}
+                                        Err(err) => {
+                                            log::error!("Stream {stream_id} capture: {err}");
+                                            break;
+                                        }
                                     }
 
                                     n_samples -= n_bytes;
